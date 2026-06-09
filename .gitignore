@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+node_modules/
+data/jobs/*
+!data/jobs/.gitkeep
+
+# Không commit package zip/binary artifact; hãy tạo zip local hoặc tải source zip từ GitHub.
+*.zip
