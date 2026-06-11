@@ -6,7 +6,6 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from omni_novel_editor.config import DEFAULT_BATCH_SIZE, DEFAULT_OUTPUT_HEADER
-from omni_novel_editor.dictionary.rules import load_builtin_dictionary
 from omni_novel_editor.excel.workbook import (
     column_options,
     find_or_create_output_column,
@@ -82,11 +81,6 @@ with st.sidebar:
     batch_size = st.number_input("Số row mỗi batch", min_value=1, max_value=100, value=DEFAULT_BATCH_SIZE, step=1)
     max_chars = st.number_input("Kích thước chunk tối đa", min_value=2000, max_value=30000, value=12000, step=1000)
     repair_enabled = st.checkbox("Tự repair 1 lần nếu validator nghi hụt/lỗi", value=True)
-    dictionary_rules = load_builtin_dictionary()
-    strict_count = sum(1 for rule in dictionary_rules if not rule.is_ambiguous)
-    ambiguous_count = sum(1 for rule in dictionary_rules if rule.is_ambiguous)
-    st.divider()
-    st.caption(f"Dictionary hậu kiểm mặc định: {strict_count} rule strict, {ambiguous_count} rule cần LLM chọn theo ngữ cảnh.")
 
 uploaded_file = st.file_uploader("Upload file Excel .xlsx", type=["xlsx"])
 if uploaded_file and uploaded_file.name != st.session_state.filename:
@@ -197,8 +191,6 @@ if run_batch:
         "manual_instruction": manual_instruction,
         "batch_size": batch_size,
         "updated_at": datetime.now().isoformat(),
-        "builtin_dictionary_strict_rules": strict_count,
-        "builtin_dictionary_ambiguous_rules": ambiguous_count,
     }
     for index, row in enumerate(rows, start=1):
         status_box.info(f"Đang xử lý row {row} / {end_row}...")

@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from omni_novel_editor.cleanup.text_cleaner import post_clean, pre_clean
-from omni_novel_editor.dictionary.rules import apply_dictionary_rules, build_dictionary_prompt_block, load_builtin_dictionary
 from omni_novel_editor.excel.workbook import cell_text, set_cell_text
 from omni_novel_editor.llm.prompts import build_edit_prompt, build_repair_prompt, build_translate_prompt
 from omni_novel_editor.processing.chunker import chunk_text
@@ -45,30 +44,25 @@ def process_row(
     if mode == "SKIP_EMPTY":
         return RowResult(row=row, status="skipped", mode=mode, error="Không có nội dung ở cột nguồn.")
 
-    dictionary_rules = load_builtin_dictionary()
-    cleaned_source = apply_dictionary_rules(pre_clean(source), dictionary_rules)
+    cleaned_source = pre_clean(source)
     chunks = chunk_text(cleaned_source, max_chars=max_chars)
     outputs: list[str] = []
     warnings: list[str] = []
 
     for chunk in chunks:
-        dictionary_block = build_dictionary_prompt_block(chunk, dictionary_rules)
-        prompt = build_edit_prompt(chunk, manual_instruction, memory_prompt, dictionary_block) if mode == "EDIT_VI_RAW" else build_translate_prompt(chunk, manual_instruction, memory_prompt, dictionary_block)
+        prompt = build_edit_prompt(chunk, manual_instruction, memory_prompt) if mode == "EDIT_VI_RAW" else build_translate_prompt(chunk, manual_instruction, memory_prompt)
         raw_output = llm_client.generate(prompt)
-        final_output = apply_dictionary_rules(post_clean(raw_output), dictionary_rules)
-        final_output = post_clean(final_output)
+        final_output = post_clean(raw_output)
         validation = validate_output(chunk, final_output, mode)
         if validation.warnings and repair_enabled:
-            repair_prompt = build_repair_prompt(chunk, final_output, validation.warnings, mode, manual_instruction, memory_prompt, dictionary_block)
-            repaired = apply_dictionary_rules(post_clean(llm_client.generate(repair_prompt)), dictionary_rules)
-            repaired = post_clean(repaired)
+            repair_prompt = build_repair_prompt(chunk, final_output, validation.warnings, mode, manual_instruction, memory_prompt)
+            repaired = post_clean(llm_client.generate(repair_prompt))
             repaired_validation = validate_output(chunk, repaired, mode)
             final_output = repaired
             validation = repaired_validation
         warnings.extend(validation.warnings)
         outputs.append(final_output)
 
-    merged_output = apply_dictionary_rules(post_clean("\n\n".join(outputs)), dictionary_rules)
-    merged_output = post_clean(merged_output)
+    merged_output = post_clean("\n\n".join(outputs))
     set_cell_text(workbook, sheet_name, row, output_col, merged_output)
     return RowResult(row=row, status="done", mode=mode, output=merged_output, warnings=warnings, chunks=len(chunks))
